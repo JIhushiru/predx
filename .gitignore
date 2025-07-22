@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pkl
+*.h5
+*.keras
+*.sqlite3
+.env
+*.log
+
+
+# Model folders
+model/
