@@ -25,7 +25,6 @@ if uploaded_file:
                     batch_results.append((unit, result["predicted_RUL"]))
             else:
                 st.warning(f"Skipping unit {unit}: insufficient rows or wrong number of features.")
-
         if batch_results:
             st.subheader("Batch Predictions")
             result_df = pd.DataFrame(batch_results, columns=["Unit ID", "Predicted RUL"])
@@ -43,7 +42,19 @@ if uploaded_file:
                 result = response.json()
 
                 if response.status_code == 200 and "predicted_RUL" in result:
-                    st.success(f"Predicted RUL: {result['predicted_RUL']:.2f}")
+                    rul_value = result['predicted_RUL']
+                    st.success(f"Predicted RUL: {rul_value:.2f}")
+
+                    # Offer download for single prediction
+                    single_df = pd.DataFrame([["001", rul_value]], columns=["Unit ID", "Predicted RUL"])
+                    csv = single_df.to_csv(index=False).encode('utf-8')
+                    st.download_button(
+                        label="Download Prediction as CSV",
+                        data=csv,
+                        file_name='single_rul_prediction.csv',
+                        mime='text/csv',
+                    )
+
 
                     # Show warning if RUL is low
                     if result["predicted_RUL"] < 20:
