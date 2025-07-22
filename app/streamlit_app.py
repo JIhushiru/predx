@@ -9,7 +9,6 @@ st.title("RUL Predictor")
 uploaded_file = st.file_uploader("Upload sensor data CSV")
 if uploaded_file:
     df = pd.read_csv(uploaded_file)
-    
     if 'unit_id' in df.columns:
         unit_ids = df['unit_id'].unique()
         st.write(f"Detected {len(unit_ids)} units.")
@@ -29,6 +28,20 @@ if uploaded_file:
             st.subheader("Batch Predictions")
             result_df = pd.DataFrame(batch_results, columns=["Unit ID", "Predicted RUL"])
             st.dataframe(result_df)
+
+            # Highlight low RULs
+            at_risk_units = [unit for unit, rul in batch_results if rul < 20]
+            if at_risk_units:
+                st.warning(f"❗ Units at risk: {', '.join(map(str, at_risk_units))}")
+            
+            # Download button
+            csv = result_df.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label="Download Batch Predictions as CSV",
+                data=csv,
+                file_name='rul_predictions.csv',
+                mime='text/csv',
+            )
 
     else:
         if df.shape[1] != 18:
