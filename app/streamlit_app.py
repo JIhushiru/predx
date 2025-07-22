@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 
 st.title("RUL Predictor")
 
@@ -9,21 +10,58 @@ uploaded_file = st.file_uploader("Upload sensor data CSV")
 if uploaded_file:
     df = pd.read_csv(uploaded_file)
     
-    if df.shape[1] != 18:
-        st.error(f"Expected 18 features, but got {df.shape[1]}")
-    elif df.shape[0] < 30:
-        st.error(f"Expected at least 30 rows (time steps), but got {df.shape[0]}")
-    else:
-        features = df.values[-30:].tolist()  # last 30 time steps
-        try:
-            response = requests.post("http://localhost:8000/predict_rul", json={"data": features})
-            result = response.json()
+    if 'unit_id' in df.columns:
+        unit_ids = df['unit_id'].unique()
+        st.write(f"Detected {len(unit_ids)} units.")
+        batch_results = []
 
-            if response.status_code == 200 and "predicted_RUL" in result:
-                st.success(f"Predicted RUL: {result['predicted_RUL']:.2f}")
+        for unit in unit_ids:
+            unit_df = df[df['unit_id'] == unit].drop(columns=['unit_id'])
+            if unit_df.shape[0] >= 30 and unit_df.shape[1] == 18:
+                features = unit_df.values[-30:].tolist()
+                response = requests.post("http://localhost:8000/predict_rul", json={"data": features})
+                result = response.json()
+                if "predicted_RUL" in result:
+                    batch_results.append((unit, result["predicted_RUL"]))
             else:
-                st.error(f"Backend error: {result}")
-            if result["predicted_RUL"] < 20:
-                st.warning("System approaching failure — consider maintenance soon.")
-        except Exception as e:
-            st.error(f"Request failed: {e}")
+                st.warning(f"Skipping unit {unit}: insufficient rows or wrong number of features.")
+
+        if batch_results:
+            st.subheader("Batch Predictions")
+            result_df = pd.DataFrame(batch_results, columns=["Unit ID", "Predicted RUL"])
+            st.dataframe(result_df)
+
+    else:
+        if df.shape[1] != 18:
+            st.error(f"Expected 18 features, but got {df.shape[1]}")
+        elif df.shape[0] < 30:
+            st.error(f"Expected at least 30 rows (time steps), but got {df.shape[0]}")
+        else:
+            features = df.values[-30:].tolist()
+            try:
+                response = requests.post("http://localhost:8000/predict_rul", json={"data": features})
+                result = response.json()
+
+                if response.status_code == 200 and "predicted_RUL" in result:
+                    st.success(f"Predicted RUL: {result['predicted_RUL']:.2f}")
+
+                    # Show warning if RUL is low
+                    if result["predicted_RUL"] < 20:
+                        st.warning("System approaching failure — consider maintenance soon.")
+
+                    # Plot trend for each feature
+                    st.subheader("Sensor Data Trend (Last 30 Timesteps)")
+                    fig, ax = plt.subplots(figsize=(12, 6))
+                    last_30 = np.array(features)
+                    for i in range(18):
+                        ax.plot(range(30), last_30[:, i], label=f"Feature {i+1}")
+                    ax.set_xlabel("Time Step")
+                    ax.set_ylabel("Sensor Reading")
+                    ax.set_title("Sensor Trends")
+                    ax.legend(ncol=3, fontsize=8)
+                    st.pyplot(fig)
+
+                else:
+                    st.error(f"Backend error: {result}")
+            except Exception as e:
+                st.error(f"Request failed: {e}")
