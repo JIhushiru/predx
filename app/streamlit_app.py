@@ -29,11 +29,25 @@ if uploaded_file:
             result_df = pd.DataFrame(batch_results, columns=["Unit ID", "Predicted RUL"])
             st.dataframe(result_df)
 
+            selected_unit = st.selectbox("Inspect Sensor Trend for Unit", [unit for unit, _ in batch_results])
+            unit_df = df[df['unit_id'] == selected_unit].drop(columns=['unit_id'])
+            last_30 = unit_df.values[-30:]
+
+            st.subheader(f"Sensor Trend for Unit {selected_unit}")
+            fig, ax = plt.subplots(figsize=(12, 6))
+            for i in range(18):
+                ax.plot(range(30), last_30[:, i], label=f"Sensor {i+1}")
+            ax.set_xlabel("Time Step")
+            ax.set_ylabel("Sensor Reading")
+            ax.set_title(f"Sensor Trends - Unit {selected_unit}")
+            ax.legend(ncol=3, fontsize=8)
+            st.pyplot(fig)
+
             # Highlight low RULs
-            at_risk_units = [unit for unit, rul in batch_results if rul < 20]
+            at_risk_units = [unit for unit, rul in batch_results if rul < 0]
             if at_risk_units:
-                st.warning(f"❗ Units at risk: {', '.join(map(str, at_risk_units))}")
-            
+                st.warning(f"⚠️ Units at risk: {', '.join(map(str, at_risk_units))}")
+
             # Download button
             csv = result_df.to_csv(index=False).encode('utf-8')
             st.download_button(
