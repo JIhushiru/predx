@@ -43,10 +43,13 @@ if uploaded_file:
             ax.legend(ncol=3, fontsize=8)
             st.pyplot(fig)
 
-            # Highlight low RULs
-            at_risk_units = [unit for unit, rul in batch_results if rul < 0]
+            # User-defined RUL risk threshold
+            threshold = st.slider("RUL Threshold for At-Risk Units", min_value=0, max_value=100, value=20)
+
+            # Highlight at-risk units based on threshold 
+            at_risk_units = [unit for unit, rul in batch_results if rul < threshold]
             if at_risk_units:
-                st.warning(f"⚠️ Units at risk: {', '.join(map(str, at_risk_units))}")
+                st.warning(f"⚠️ Units below RUL threshold ({threshold}): {', '.join(map(str, at_risk_units))}")
 
             # Download button
             csv = result_df.to_csv(index=False).encode('utf-8')
