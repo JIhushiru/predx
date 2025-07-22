@@ -11,3 +11,6 @@ __pycache__/
 
 # Model folders
 model/
+
+# Sample data
+sample_sensor_data.csv
